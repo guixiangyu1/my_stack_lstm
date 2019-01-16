@@ -250,6 +250,7 @@ def read_corpus_ner(lines, word_count):
                     ner_label = ""
                 tmp_al.append("OUT")
 
+
         elif len(tmp_fl) > 0:
             if not ner_label =="":
                 tmp_al.append(ner_label)
