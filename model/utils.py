@@ -1,10 +1,13 @@
 import itertools
 import json
 
+
+
 import numpy as np
 import torch.nn as nn
 import torch.nn.init
 from torch.utils.data import Dataset
+from torch import *
 
 class TransitionDataset_P(Dataset):
 
@@ -117,7 +120,10 @@ def shrink_features(feature_map, features, thresholds):
     feature_map['<eof>'] = len(feature_map)
     return feature_map
 
-def generate_corpus(lines: object, word_count, use_spelling, if_shrink_feature: object = False, thresholds: object = 1) -> object:
+
+# def generate_corpus(lines: object, word_count, use_spelling, if_shrink_feature: object = False, thresholds: object = 1) -> object:
+def generate_corpus(lines: object, word_count, use_spelling, if_shrink_feature: object = False,
+                        thresholds: object = 1):
 
     feature_map = dict()
     if use_spelling:
@@ -132,9 +138,9 @@ def generate_corpus(lines: object, word_count, use_spelling, if_shrink_feature: 
     actions = list()
     labels = list()
 
-    tmp_fl = list()
-    tmp_ll = list()
-    tmp_al = list()
+    tmp_fl = list()   #feature list
+    tmp_ll = list()   #label list
+    tmp_al = list()   #action list
     count_ner = 0
     ner_label = ""
     for line in lines:
@@ -224,7 +230,7 @@ def read_corpus_ner(lines, word_count):
     ner_label = ""
     for line in lines:
         if not (line.isspace() or (len(line) > 10 and line[0:10] == '-DOCSTART-')):
-            line = line.rstrip('\n').split()
+            line = line.rstrip('\n').split()   #rstrip 排除靠后的字符
             tmp_fl.append(line[0])
             if line[0] in word_count:
                 word_count[line[0]] += 1
@@ -303,6 +309,8 @@ def load_embedding_wlm(emb_file, delimiter, feature_map, full_feature_set, casel
     in_doc_freq_num = len(word_dict)
     rand_embedding_tensor = torch.FloatTensor(in_doc_freq_num, emb_len)
     init_embedding(rand_embedding_tensor)
+
+
 
     indoc_embedding_array = list()
     indoc_word_array = list()

@@ -254,8 +254,8 @@ class TransitionNER(nn.Module):
         if self.mode == 'train':
             action_embeds = self.dropout_e(self.action_embeds(actions))
             relation_embeds = self.dropout_e(self.relation_embeds(actions))
-            action_output, _ = self.ac_lstm(action_embeds.transpose(0, 1))
-            action_output = action_output.transpose(0, 1)
+            action_output, _ = self.ac_lstm(action_embeds.transpose(0, 1))  #transpose 转置 action_embeds,100*8*100变成8*100*100
+            action_output = action_output.transpose(0, 1)    #最终变成100*8*hidden dim
 
         lstm_initial = (
         utils.xavier_init(self.gpu_triger, 1, self.hidden_dim), utils.xavier_init(self.gpu_triger, 1, self.hidden_dim))

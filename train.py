@@ -15,6 +15,9 @@ import itertools
 import functools
 
 
+
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Training transition-based NER system')
     parser.add_argument('--batch', action='store_true')
@@ -102,12 +105,19 @@ if __name__ == "__main__":
         train_features, train_labels, train_actions, f_map, l_map, a_map, ner_map, singleton, char_map = utils.generate_corpus(lines, word_count, args.spelling,
                                                                                                 if_shrink_feature=True,
                                                                                                 thresholds=0)
+        #f_map: words2num（key为word）, l_map: label2num, a_map: action2num, ner_map: REDUCE-ORG(4个), char_map: char2num, singleton: 出现一次的word
         f_set = {v for v in f_map}
 
+
+        # map reduce, map是对每一个对应位置的元素进行，类似zip；reduce针对强两个先做，再将结果和后续的递归计算
         dt_f_set = functools.reduce(lambda x, y: x | y, map(lambda t: set(t), dev_features),
                                     f_set)  # Add word in dev and in test into feature_map
         dt_f_set = functools.reduce(lambda x, y: x | y, map(lambda t: set(t), test_features), dt_f_set)
         dt_f_set = functools.reduce(lambda x, y: x | y, map(lambda t: set(t), train_features), dt_f_set)
+        # 两个set做合并操作。只不过用到了比较复杂的reduce。 竖线表示“与”，这里表示集合的“并”
+        #得到了data_feature_set, 也就是所有的词的集合
+
+
 
         if not args.rand_embedding:
             print("feature size: '{}'".format(len(f_map)))
@@ -149,8 +159,9 @@ if __name__ == "__main__":
     else:
         if not args.rand_embedding:
             ner_model.load_pretrained_embedding(embedding_tensor)
-        print('random initialization')
-        ner_model.rand_init(init_word_embedding=args.rand_embedding)
+        else:
+            print('random initialization')
+            ner_model.rand_init(init_word_embedding=args.rand_embedding)
 
     if args.update == 'sgd':
         optimizer = optim.SGD(ner_model.parameters(), lr=args.lr, momentum=args.momentum, nesterov=True)
@@ -181,7 +192,7 @@ if __name__ == "__main__":
     for epoch_idx, args.start_epoch in enumerate(epoch_list):
 
         epoch_loss = 0
-        ner_model.train()
+        ner_model.train() #将训练模式调整为training mode。只对dropout、batchnorm起作用
     
         for feature, label, action in tqdm(
                 itertools.chain.from_iterable(dataset_loader), mininterval=2,
