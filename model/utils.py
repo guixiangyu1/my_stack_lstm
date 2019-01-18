@@ -106,13 +106,19 @@ def encode(input_lines, word_dict):
     return lines
 
 def shrink_features(feature_map, features, thresholds):
+    """
 
+    :param feature_map:  word:id
+    :param features:     word list
+    :param thresholds:   最小值，否则去掉，统一为unk
+    :return: 过滤后的 word：id
+    """
     feature_count = {k: 0 for (k, v) in iter(feature_map.items())}
     for feature_list in features:
         for feature in feature_list:
             feature_count[feature] += 1
-    shrinked_feature_count = [k for (k, v) in iter(feature_count.items()) if v >= thresholds]
-    feature_map = {shrinked_feature_count[ind]: (ind + 1) for ind in range(0, len(shrinked_feature_count))}
+    shrinked_features = [k for (k, v) in iter(feature_count.items()) if v >= thresholds]
+    feature_map = {shrinked_features[ind]: (ind + 1) for ind in range(0, len(shrinked_features))}
 
     #inserting unk to be 0 encoded
     feature_map['<unk>'] = 0
@@ -122,8 +128,19 @@ def shrink_features(feature_map, features, thresholds):
 
 
 # def generate_corpus(lines: object, word_count, use_spelling, if_shrink_feature: object = False, thresholds: object = 1) -> object:
-def generate_corpus(lines: object, word_count, use_spelling, if_shrink_feature: object = False,
-                        thresholds: object = 1):
+def generate_corpus(lines, word_count, use_spelling, if_shrink_feature = False,
+                        thresholds = 1):
+    """
+    :param lines: train_dataset的f.readlines()
+    :param word_count: diction
+    :param use_spelling: 用不用拼写来判断结果
+    :param if_shrink_feature:
+    :param thresholds:  最小的出现次数，否则统一为unk
+    :return:
+    ner_map:记录reduce-category:id
+
+
+    """
 
     feature_map = dict()
     if use_spelling:
@@ -138,15 +155,15 @@ def generate_corpus(lines: object, word_count, use_spelling, if_shrink_feature: 
     actions = list()
     labels = list()
 
-    tmp_fl = list()   #feature list
-    tmp_ll = list()   #label list
-    tmp_al = list()   #action list
+    tmp_features = list()   #feature list
+    tmp_labels = list()   #label list
+    tmp_actions = list()   #action list
     count_ner = 0
     ner_label = ""
     for line in lines:
         if not (line.isspace() or (len(line) > 10 and line[0:10] == '-DOCSTART-')):
             line = line.rstrip('\n').split()
-            tmp_fl.append(line[0])
+            tmp_features.append(line[0])
             if line[0] in word_count:
                 word_count[line[0]] += 1
             else:
@@ -155,7 +172,7 @@ def generate_corpus(lines: object, word_count, use_spelling, if_shrink_feature: 
                 for char_idx in range(len(line[0])):
                     if line[0][char_idx] not in char_map:
                         char_map[line[0][char_idx]] = len(char_map)
-            tmp_ll.append(line[-1])
+            tmp_labels.append(line[-1])
 
             if line[0] not in feature_map:
                 feature_map[line[0]] = len(feature_map) + 1 #0 is for unk
@@ -164,50 +181,50 @@ def generate_corpus(lines: object, word_count, use_spelling, if_shrink_feature: 
 
             if len(line[-1].split('-')) > 1:
                 if line[-1].split('-')[0] == "B" and not ner_label == "":
-                    tmp_al.append(ner_label)
+                    tmp_actions.append(ner_label)
                     count_ner += 1
                 ner_label = "REDUCE-"+line[-1].split('-')[1]
                 if ner_label not in action_map:
                     ner_map[ner_label] = len(ner_map)
                     action_map[ner_label] = len(action_map)
-                tmp_al.append("SHIFT")
+                tmp_actions.append("SHIFT")
             else:
                 if not ner_label == "":
-                    tmp_al.append(ner_label)
+                    tmp_actions.append(ner_label)
                     count_ner += 1
                     ner_label = ""
-                tmp_al.append("OUT")
+                tmp_actions.append("OUT")
 
-        elif len(tmp_fl) > 0:
+        elif len(tmp_features) > 0:
             if not ner_label =="":
-                tmp_al.append(ner_label)
+                tmp_actions.append(ner_label)
                 count_ner += 1
                 ner_label = ""
-            assert len(tmp_ll) == len(tmp_fl)
-            assert len(tmp_al) == len(tmp_fl)+count_ner
-            features.append(tmp_fl)
-            labels.append(tmp_ll)
-            actions.append(tmp_al)
+            assert len(tmp_labels) == len(tmp_features)
+            assert len(tmp_actions) == len(tmp_features)+count_ner
+            features.append(tmp_features)
+            labels.append(tmp_labels)
+            actions.append(tmp_actions)
             count_ner = 0
-            tmp_al = list()
-            tmp_fl = list()
-            tmp_ll = list()
-    if len(tmp_fl) > 0:
-        assert len(tmp_ll) == len(tmp_fl)
-        assert len(tmp_al) == len(tmp_fl)+count_ner
-        features.append(tmp_fl)
-        labels.append(tmp_ll)
-        actions.append(tmp_al)
+            tmp_actions = list()
+            tmp_features = list()
+            tmp_labels = list()
+    if len(tmp_features) > 0:
+        assert len(tmp_labels) == len(tmp_features)
+        assert len(tmp_actions) == len(tmp_features)+count_ner
+        features.append(tmp_features)
+        labels.append(tmp_labels)
+        actions.append(tmp_actions)
 
     if if_shrink_feature:
-        feature_map = shrink_features(feature_map, features, thresholds)
+        feature_map = shrink_features(feature_map, features, thresholds) #thretholds = 1 的情况下，与else部分内容没啥区别
     else:
         #inserting unk to be 0 encoded
         feature_map['<unk>'] = 0
         #inserting eof
         feature_map['<eof>'] = len(feature_map)
-    action_map['<pad>'] = len(action_map)
-    label_map['<pad>'] = len(label_map)
+    action_map['<pad>'] = len(action_map)  #这两个pad加在这里恐怕不对，因为最后计算loss直接关系到有几个token
+    label_map['<pad>'] = len(label_map)     #这两个pad加在这里恐怕不对，因为最后计算loss直接关系到有几个token
 
     singleton = list()
 
@@ -219,58 +236,64 @@ def generate_corpus(lines: object, word_count, use_spelling, if_shrink_feature: 
 
 
 def read_corpus_ner(lines, word_count):
-
+    """
+    :param lines: f.readlines()
+    :param word_count: dict()，可能是已经统计过某个set的dict
+    :return:
+    """
     features = list()
     actions = list()
     labels = list()
-    tmp_fl = list()
-    tmp_ll = list()
-    tmp_al = list()
-    count_ner = 0
-    ner_label = ""
+    tmp_features = list()
+    tmp_labels = list()
+    tmp_actions = list()
+    count_NE = 0   #没啥用，就是后面assert的时候用上
+    ner_labels = ""
     for line in lines:
         if not (line.isspace() or (len(line) > 10 and line[0:10] == '-DOCSTART-')):
             line = line.rstrip('\n').split()   #rstrip 排除靠后的字符
-            tmp_fl.append(line[0])
+            tmp_features.append(line[0])
             if line[0] in word_count:
                 word_count[line[0]] += 1
             else:
                 word_count[line[0]] = 1
-            tmp_ll.append(line[-1])
+            tmp_labels.append(line[-1])
             if len(line[-1].split('-')) > 1:
-                if line[-1].split('-')[0] == "B" and not ner_label == "":
-                    tmp_al.append(ner_label)
-                    count_ner += 1
-                ner_label = "REDUCE-"+line[-1].split('-')[1]
-                tmp_al.append("SHIFT")
+                if line[-1].split('-')[0] == "B" and not ner_labels == "":
+                    tmp_actions.append(ner_labels)
+                    count_NE += 1
+                ner_labels = "REDUCE-"+line[-1].split('-')[1]
+                tmp_actions.append("SHIFT")
             else:
-                if not ner_label == "":
-                    tmp_al.append(ner_label)
-                    count_ner += 1
-                    ner_label = ""
-                tmp_al.append("OUT")
+                if not ner_labels == "":
+                    tmp_actions.append(ner_labels)
+                    count_NE += 1
+                    ner_labels = ""
+                tmp_actions.append("OUT")
 
 
-        elif len(tmp_fl) > 0:
-            if not ner_label =="":
-                tmp_al.append(ner_label)
-                count_ner += 1
-                ner_label = ""
-            assert len(tmp_ll) == len(tmp_fl)
-            assert len(tmp_al) == len(tmp_fl)+count_ner
-            features.append(tmp_fl)
-            labels.append(tmp_ll)
-            actions.append(tmp_al)
-            count_ner = 0
-            tmp_al = list()
-            tmp_fl = list()
-            tmp_ll = list()
-    if len(tmp_fl) > 0:
-        assert len(tmp_ll) == len(tmp_fl)
-        assert len(tmp_al) == len(tmp_fl)+count_ner
-        features.append(tmp_fl)
-        labels.append(tmp_ll)
-        actions.append(tmp_al)
+        elif len(tmp_features) > 0:
+            if not ner_labels =="":
+                tmp_actions.append(ner_labels)
+                count_NE += 1
+                ner_labels = ""
+            assert len(tmp_labels) == len(tmp_features)
+            assert len(tmp_actions) == len(tmp_features)+count_NE
+            features.append(tmp_features)
+            labels.append(tmp_labels)
+            actions.append(tmp_actions)
+            count_NE = 0
+            tmp_actions = list()
+            tmp_features = list()
+            tmp_labels = list()
+
+    # 文件结尾，作者担心没有空格
+    if len(tmp_features) > 0:
+        assert len(tmp_labels) == len(tmp_features)
+        assert len(tmp_actions) == len(tmp_features)+count_NE
+        features.append(tmp_features)
+        labels.append(tmp_labels)
+        actions.append(tmp_actions)
 
     return features, labels, actions, word_count
 
