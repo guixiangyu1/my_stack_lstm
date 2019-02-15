@@ -335,7 +335,7 @@ def shrink_embedding(feature_map, word_dict, word_embedding, caseless):
     return new_word_dict, new_embedding
 
 def load_embedding_wlm(emb_file, delimiter, feature_map, full_feature_set, caseless, unk, emb_len, shrink_to_train=False, shrink_to_corpus=False):
-
+# 关键在于是否shrink，很磨叽，shrink就会把用不到的embedding扔掉，否则就会保留所有的embedding，对本实验的结果并无影响
     if caseless:
         feature_set = set([key.lower() for key in feature_map])   # train文件得到的feature_map
         full_feature_set = set([key.lower() for key in full_feature_set])   # 所有文件得到的feature_set
@@ -366,8 +366,8 @@ def load_embedding_wlm(emb_file, delimiter, feature_map, full_feature_set, casel
             if shrink_to_train and line[0] not in feature_set:
                 continue
 
-            if line[0] == unk:
-                rand_embedding_tensor[0] = torch.FloatTensor(vector)  # unk is 0
+            if line[0] == unk:    # default unk = 'unk'
+                rand_embedding_tensor[0] = torch.FloatTensor(vector)
             elif line[0] in word_dict:
                 rand_embedding_tensor[word_dict[line[0]]] = torch.FloatTensor(vector)
             elif line[0] in full_feature_set:
