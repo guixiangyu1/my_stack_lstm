@@ -136,8 +136,17 @@ def generate_corpus(lines, word_count, use_spelling, if_shrink_feature = False,
     :param use_spelling: 用不用拼写来判断结果
     :param if_shrink_feature:
     :param thresholds:  最小的出现次数，否则统一为unk
-    :return:
-    ner_map:记录reduce-category:id
+    :return: 既有map，又有list
+    features, list
+    labels, list
+    actions, list
+    feature_map,
+    label_map,
+    action_map,
+    ner_map, 记录reduce-category:id
+    singleton, 出现一次的feature的list
+    char_map，字符字典
+
 
 
     """
@@ -158,8 +167,10 @@ def generate_corpus(lines, word_count, use_spelling, if_shrink_feature = False,
     tmp_features = list()   #feature list
     tmp_labels = list()   #label list
     tmp_actions = list()   #action list
+    #tmp系列，用于处理每句话，将其装入list
+
     count_ner = 0
-    ner_label = ""
+    ner_label = ""         # 存放字符，REDUCE-LOC等
     for line in lines:
         if not (line.isspace() or (len(line) > 10 and line[0:10] == '-DOCSTART-')):
             line = line.rstrip('\n').split()
@@ -168,10 +179,13 @@ def generate_corpus(lines, word_count, use_spelling, if_shrink_feature = False,
                 word_count[line[0]] += 1
             else:
                 word_count[line[0]] = 1
+
+            # char_map完善
             if use_spelling:
                 for char_idx in range(len(line[0])):
                     if line[0][char_idx] not in char_map:
                         char_map[line[0][char_idx]] = len(char_map)
+
             tmp_labels.append(line[-1])
 
             if line[0] not in feature_map:
@@ -179,6 +193,7 @@ def generate_corpus(lines, word_count, use_spelling, if_shrink_feature = False,
             if line[-1] not in label_map:
                 label_map[line[-1]] = len(label_map)
 
+            #处理action，通过ner_label记录每一次的reduce的结果
             if len(line[-1].split('-')) > 1:
                 if line[-1].split('-')[0] == "B" and not ner_label == "":
                     tmp_actions.append(ner_label)
@@ -195,7 +210,7 @@ def generate_corpus(lines, word_count, use_spelling, if_shrink_feature = False,
                     ner_label = ""
                 tmp_actions.append("OUT")
 
-        elif len(tmp_features) > 0:
+        elif len(tmp_features) > 0:  #一句话结束后的收尾处理
             if not ner_label =="":
                 tmp_actions.append(ner_label)
                 count_ner += 1
@@ -209,6 +224,8 @@ def generate_corpus(lines, word_count, use_spelling, if_shrink_feature = False,
             tmp_actions = list()
             tmp_features = list()
             tmp_labels = list()
+
+    #全文结束后的收尾处理，万一文档结尾没给空格符，直接结束了，最后一句话就不能有效处理了
     if len(tmp_features) > 0:
         assert len(tmp_labels) == len(tmp_features)
         assert len(tmp_actions) == len(tmp_features)+count_ner
@@ -320,8 +337,8 @@ def shrink_embedding(feature_map, word_dict, word_embedding, caseless):
 def load_embedding_wlm(emb_file, delimiter, feature_map, full_feature_set, caseless, unk, emb_len, shrink_to_train=False, shrink_to_corpus=False):
 
     if caseless:
-        feature_set = set([key.lower() for key in feature_map])
-        full_feature_set = set([key.lower() for key in full_feature_set])
+        feature_set = set([key.lower() for key in feature_map])   # train文件得到的feature_map
+        full_feature_set = set([key.lower() for key in full_feature_set])   # 所有文件得到的feature_set
     else:
         feature_set = set([key for key in feature_map])
         full_feature_set = set([key for key in full_feature_set])

@@ -117,8 +117,9 @@ if __name__ == "__main__":
         # 首先将dev_features中，每一句话的list变成set，然后以f_set为起始值，合并两个set
         dataset_features = functools.reduce(lambda x, y: x | y, map(lambda t: set(t), test_features), dataset_features)
         dataset_features = functools.reduce(lambda x, y: x | y, map(lambda t: set(t), train_features), dataset_features)
+        # 把train_features中的词也加了进来，因为从feature到feature_map可能会将一些低频词替换成<unk>
         # 两个set做合并操作。只不过用到了比较复杂的reduce。 竖线表示“与”，这里表示集合的“并”
-        #得到了data_feature_set, 也就是所有的词的集合
+        # 得到了data_feature_set, 也就是所有的词的集合
 
 
 
