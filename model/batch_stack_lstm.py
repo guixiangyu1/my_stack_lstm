@@ -249,16 +249,17 @@ class TransitionNER(nn.Module):
         else:
             self.mode = "predict"
 
-        self.set_batch_seq_size(sentences)  # sentences [batch_size, max_len]
+        self.set_batch_seq_size(sentences)  # sentences [batch_size, sentence_length]
         word_embeds = self.dropout_e(self.word_embeds(sentences))  # [batch_size, max_len, embeddind_size]
         if self.mode == 'train':
             action_embeds = self.dropout_e(self.action_embeds(actions))
             relation_embeds = self.dropout_e(self.relation_embeds(actions))
-            action_output, _ = self.ac_lstm(action_embeds.transpose(0, 1))  #transpose 转置 action_embeds,100*8*100变成8*100*100
-            action_output = action_output.transpose(0, 1)    #最终变成100*8*hidden dim
+            action_output, _ = self.ac_lstm(action_embeds.transpose(0, 1))  #transpose 转置 action_embeds,100*8*20变成8*100*20
+            # input of shape (seq_len, batch, input_size)
+            action_output = action_output.transpose(0, 1)    #最终变成100*8*hidden dim(100)
 
         lstm_initial = (
-        utils.xavier_init(self.gpu_triger, 1, self.hidden_dim), utils.xavier_init(self.gpu_triger, 1, self.hidden_dim))
+        utils.xavier_init(self.gpu_triger, 1, self.hidden_dim), utils.xavier_init(self.gpu_triger, 1, self.hidden_dim)) #初始化了俩1*100的tensor
 
         sentence_array = sentences.data.cpu().numpy()
         sents_len = []
@@ -276,6 +277,7 @@ class TransitionNER(nn.Module):
                     else:
                         count_words += 1
                         word = sentence_array[sent_idx][word_idx]
+                        # a = self.idx2word[word]   原因在于这个dictionary 做的有问题， unk -> 0; pad (<eof>) -> 1;
                         chars_in_word = [self.char2idx[char] for char in self.idx2word[word]]
                         chars_Tensor = utils.variable(torch.from_numpy(np.array(chars_in_word)), self.gpu_triger)
                         chars_embeds = self.dropout_e(self.char_embeds(chars_Tensor))

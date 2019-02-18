@@ -148,10 +148,12 @@ if __name__ == "__main__":
     dataset = utils.construct_dataset(train_features, train_labels, train_actions, features_map, labels_map, actions_map, singleton, args.singleton_rate, args.caseless)
     dev_dataset = utils.construct_dataset(dev_features, dev_labels, dev_actions, features_map, labels_map, actions_map, singleton, args.singleton_rate, args.caseless)
     test_dataset = utils.construct_dataset(test_features, test_labels, test_actions, features_map, labels_map, actions_map, singleton, args.singleton_rate, args.caseless)
-
+    # construct_dataset return:
+    # dataset由4个TransitionDataset组成，每个TransitionDataset都是一个可index的对象，分别面向不同的语句长度构成
     dataset_loader = [torch.utils.data.DataLoader(tup, args.batch_size, shuffle=True, drop_last=False) for tup in dataset]
     dev_dataset_loader = [torch.utils.data.DataLoader(tup, args.batch_size, shuffle=False, drop_last=False) for tup in dev_dataset]
     test_dataset_loader = [torch.utils.data.DataLoader(tup, args.batch_size, shuffle=False, drop_last=False) for tup in test_dataset]
+    # dataset_loader 作为list装了四个DataLoader对象
 
     # build model
     print('building model')
@@ -162,7 +164,7 @@ if __name__ == "__main__":
         ner_model.load_state_dict(checkpoint_file['state_dict'])
     else:
         if not args.rand_embedding:
-            ner_model.load_pretrained_embedding(embedding_tensor)
+            ner_model.load_pretrained_embedding(embedding_tensor)    #将self.word_embedding 改变成为了pre-trained
         else:
             print('random initialization')
             ner_model.rand_init(init_word_embedding=args.rand_embedding)
@@ -177,6 +179,7 @@ if __name__ == "__main__":
 
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=args.lr_decay, patience=0,
                                                            verbose=True)
+    # scheduler 主要是在patience次数没有优化后，主动降低learning rate
 
     if if_cuda:
         print('device: ' + str(args.gpu))
@@ -185,7 +188,7 @@ if __name__ == "__main__":
     else:
         if_cuda = False
 
-    tot_length = sum(map(lambda t: len(t), dataset_loader))
+    tot_length = sum(map(lambda t: len(t), dataset_loader))  # 所有Batch的数目总和
     best_f1 = float('-inf')
     best_acc = float('-inf')
     track_list = list()
@@ -199,7 +202,7 @@ if __name__ == "__main__":
         ner_model.train() #将训练模式调整为training mode。只对dropout、batchnorm起作用
     
         for feature, label, action in tqdm(
-                itertools.chain.from_iterable(dataset_loader), mininterval=2,
+                itertools.chain.from_iterable(dataset_loader), mininterval=2,  #itertools.chain.from_itterable()将括号中的对象展开为正常的一串序列，此处为143个batch
                 desc=' - Tot it %d (epoch %d)' % (tot_length, args.start_epoch), leave=False, file=sys.stdout):
 
             fea_v, la_v, ac_v = utils.repack_vb(if_cuda, feature, label, action)

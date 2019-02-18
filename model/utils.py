@@ -407,7 +407,7 @@ def calc_threshold_mean(features):
     lower_average = int(sum(lower_line) / len(lower_line))
     upper_average = int(sum(upper_line) / len(upper_line))
     max_len = max(lines_len)
-    return [lower_average, average, upper_average, max_len]
+    return [lower_average, average, upper_average, max_len]   # [8,17,30,115]
 
 
 def construct_dataset(input_features, input_label, input_action, word_dict, label_dict, action_dict, singleton, singleton_rate, caseless):
@@ -417,9 +417,9 @@ def construct_dataset(input_features, input_label, input_action, word_dict, labe
     features = encode_safe(input_features, word_dict, word_dict['<unk>'], singleton, singleton_rate)
     labels = encode(input_label, label_dict)
     actions = encode(input_action, action_dict)
-    thresholds = calc_threshold_mean(actions)
+    thresholds = calc_threshold_mean(actions)  #[8,17,20,115]
 
-    buckets = [[[], [], []] for _ in range(len(thresholds))]
+    buckets = [[[], [], []] for _ in range(len(thresholds))]    # 4*3*0
     for feature, label, action in zip(features, labels, actions):
         cur_len = len(action)
         cur_sent_len = len(feature)
@@ -430,8 +430,9 @@ def construct_dataset(input_features, input_label, input_action, word_dict, labe
         buckets[idx][0].append(feature + [word_dict['<eof>']] * (thresholds[idx] - cur_sent_len))
         buckets[idx][1].append(label + [label_dict['<pad>']] * (thresholds[idx] - cur_sent_len))
         buckets[idx][2].append(action + [action_dict['<pad>']] * (thresholds[idx] - cur_len))
-
+        # 按长短分为4类，每类有三种元素：word, label, action, 每个元素都按照各自的长度进行补全，元素的个数由语料中句子长度的分布决定
     dataset = [TransitionDataset(torch.LongTensor(bucket[0]), torch.LongTensor(bucket[1]), torch.LongTensor(bucket[2])) for bucket in buckets]
+    # dataset由4个TransitionDataset组成，每个TransitionDataset都是一个可index的对象，分别面向不同的语句长度构成
 
     return dataset
 
